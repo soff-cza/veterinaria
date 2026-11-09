@@ -9,11 +9,17 @@ import com.ejemplo.modelo.Veterinarias;
 
 public interface ReservasServicios {
 
+    // Arma un objeto Reservas vinculando la mascota y la veterinaria elegidas
     public Reservas registrarReserva(Mascotas mascota, Veterinarias veterinaria, LocalDate fechaReserva,
             int numeroReserva, int precio, boolean pagada);
+
+    // Busca una reserva por su número en la lista
     public Reservas buscarReservaPorNumero(LinkedList<Reservas> listaReservas, int numeroReserva);
+
+    // Guarda la reserva en la base de datos y la agrega a la lista
     public void agregarReserva(Reservas reserva, LinkedList<Reservas> listaReservas);
 
+    // Muestra por consola todas las reservas de la lista
     default void mostrarReservas(LinkedList<Reservas> listaReservas) {
         if (listaReservas.isEmpty()) {
             System.out.println("No hay reservas registradas.");

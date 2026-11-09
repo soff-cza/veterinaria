@@ -1,5 +1,6 @@
 package com.ejemplo.gui;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.GridLayout;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -21,6 +22,7 @@ import javax.swing.ListSelectionModel;
 import javax.swing.SwingConstants;
 
 import com.ejemplo.Main;
+import com.ejemplo.control.ValidarDato;
 import com.ejemplo.modelo.Mascotas;
 import com.ejemplo.modelo.Urgencias;
 import com.ejemplo.modelo.Veterinarias;
@@ -37,11 +39,13 @@ public class UrgenciasFrame extends JFrame {
     private JButton btnGuardar;
     private JButton btnVolver;
 
+    // Constructor: arma la ventana de registro de urgencias
     public UrgenciasFrame() {
         configurarVentana();
         inicializarComponentes();
     }
 
+    // Configura título, tamaño y posición de la ventana
     private void configurarVentana() {
         setTitle("Urgencias");
         setSize(500, 400);
@@ -49,6 +53,7 @@ public class UrgenciasFrame extends JFrame {
         setLocationRelativeTo(null);
     }
 
+    // Crea los campos del formulario, los botones y el nombre de la alumna
     private void inicializarComponentes() {
 
         JPanel panelPrincipal = new JPanel(new BorderLayout());
@@ -56,9 +61,7 @@ public class UrgenciasFrame extends JFrame {
         JPanel panelFormulario = new JPanel(new GridLayout(4, 2, 20, 15));
 
         panelFormulario.add(new JLabel("Mascotas (Ctrl+clic para varias):", SwingConstants.CENTER));
-        // A diferencia de los demás formularios, acá usamos un JList en vez de
-        // un JComboBox, porque una urgencia puede atender a más de una mascota
-        // a la vez (Urgencias.mascotas es un ArrayList<Mascotas>, no un solo objeto)
+        // Se usa un JList porque una urgencia puede atender a varias mascotas
         DefaultListModel<Mascotas> mascotasModel = new DefaultListModel<>();
         for (Mascotas m : Main.listaMascotas) {
             mascotasModel.addElement(m);
@@ -91,8 +94,13 @@ public class UrgenciasFrame extends JFrame {
         panelBotones.add(btnGuardar);
         panelBotones.add(btnVolver);
 
+        // Panel inferior: botones y nombre de la alumna abajo a la derecha
+        JPanel panelSur = new JPanel(new BorderLayout());
+        panelSur.add(panelBotones, BorderLayout.CENTER);
+        panelSur.add(new JLabel("Alumna: Sofia Carranza ", SwingConstants.RIGHT), BorderLayout.SOUTH);
+
         panelPrincipal.add(panelFormulario, BorderLayout.CENTER);
-        panelPrincipal.add(panelBotones, BorderLayout.SOUTH);
+        panelPrincipal.add(panelSur, BorderLayout.SOUTH);
 
         add(panelPrincipal);
 
@@ -100,16 +108,18 @@ public class UrgenciasFrame extends JFrame {
         btnVolver.addActionListener(e -> volver());
     }
 
+    // Cierra esta ventana y vuelve a la ventana principal
     private void volver() {
         this.dispose(); // Cierra la ventana actual
         MainFrame ventanaPrincipal = new MainFrame();
         ventanaPrincipal.setVisible(true); // Abre la ventana principal
     }
 
+    // Valida los datos, vincula las mascotas y la veterinaria elegidas y
+    // guarda la urgencia a través del servicio
     private void guardarUrgencia() {
 
-        // getSelectedValuesList() devuelve todas las mascotas marcadas en el
-        // JList (puede ser una, varias, o ninguna si el usuario no seleccionó)
+        // getSelectedValuesList() devuelve todas las mascotas marcadas en la lista
         ArrayList<Mascotas> mascotasSeleccionadas = new ArrayList<>(listMascotas.getSelectedValuesList());
 
         if (mascotasSeleccionadas.isEmpty() || cmbVeterinarias.getSelectedItem() == null) {
@@ -123,18 +133,34 @@ public class UrgenciasFrame extends JFrame {
             return;
         }
 
+        restablecerColores();
+
+        if (!ValidarDato.validarFecha(fechaIngresoTexto)) {
+            marcarError(txtFechaIngreso, "La fecha de ingreso debe tener el formato dd/MM/yyyy.");
+            return;
+        }
+
+        String fechaAltaTexto = txtFechaAlta.getText().trim();
+        if (!fechaAltaTexto.isEmpty() && !ValidarDato.validarFecha(fechaAltaTexto)) {
+            marcarError(txtFechaAlta, "La fecha de alta debe tener el formato dd/MM/yyyy.");
+            return;
+        }
+
         try {
             final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
             LocalDate fechaIngreso = LocalDate.parse(fechaIngresoTexto, FORMATTER);
 
-            // La fecha de alta es opcional: si el usuario la deja vacía, la
-            // urgencia queda "en curso" (ver Urgencias.estaEnCurso, que
-            // considera en curso cuando fechaAlta es null)
-            String fechaAltaTexto = txtFechaAlta.getText().trim();
+            // La fecha de alta es opcional: si queda vacía la urgencia sigue en curso
             LocalDate fechaAlta = fechaAltaTexto.isEmpty() ? null : LocalDate.parse(fechaAltaTexto, FORMATTER);
+
+            if (fechaAlta != null && fechaAlta.isBefore(fechaIngreso)) {
+                marcarError(txtFechaAlta, "La fecha de alta no puede ser anterior a la de ingreso.");
+                return;
+            }
 
             Veterinarias veterinaria = (Veterinarias) cmbVeterinarias.getSelectedItem();
 
+            // Aquí se arma la urgencia y se guarda en la base y en la lista
             UrgenciasServiciosImpl servicios = new UrgenciasServiciosImpl();
             Urgencias urgencia = servicios.registrarUrgencia(veterinaria, mascotasSeleccionadas, fechaIngreso, fechaAlta);
             servicios.agregarUrgencia(urgencia, Main.listaUrgencias);
@@ -148,10 +174,24 @@ public class UrgenciasFrame extends JFrame {
         }
     }
 
+    // Deja el formulario vacío para cargar un nuevo registro
     private void limpiarFormulario() {
         listMascotas.clearSelection();
         txtFechaIngreso.setText("");
         txtFechaAlta.setText("");
+    }
+
+    // Muestra el mensaje de error y pinta de amarillo el campo incorrecto
+    private void marcarError(JTextField campo, String mensaje) {
+        JOptionPane.showMessageDialog(this, mensaje, "Error", JOptionPane.ERROR_MESSAGE);
+        campo.setBackground(Color.YELLOW);
+        campo.requestFocus();
+    }
+
+    // Vuelve a poner en blanco el fondo de los campos de fecha
+    private void restablecerColores() {
+        txtFechaIngreso.setBackground(Color.WHITE);
+        txtFechaAlta.setBackground(Color.WHITE);
     }
 
 }

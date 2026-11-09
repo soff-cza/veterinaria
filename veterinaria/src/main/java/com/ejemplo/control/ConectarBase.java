@@ -11,7 +11,8 @@ public class ConectarBase {
     public ConectarBase(){
         this.conexion = null;
     }
-    
+ 
+    // Carga el driver de MySQL y abre la conexión con los datos de Configuracion
     public Connection conectar() throws InstantiationException,IllegalAccessException{
         try{
             Class.forName("com.mysql.cj.jdbc.Driver");

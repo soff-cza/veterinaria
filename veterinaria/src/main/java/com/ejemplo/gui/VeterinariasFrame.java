@@ -1,5 +1,6 @@
 package com.ejemplo.gui;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.GridLayout;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -15,6 +16,7 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
 import com.ejemplo.Main;
+import com.ejemplo.control.ValidarDato;
 import com.ejemplo.modelo.Veterinarias;
 import com.ejemplo.servicio.impl.VeterinariasServiciosImpl;
 
@@ -29,23 +31,25 @@ public class VeterinariasFrame extends JFrame {
     private JButton btnGuardar;
     private JButton btnVolver;
 
+    // Constructor: arma la ventana de registro de veterinarias
     public VeterinariasFrame() {
         configurarVentana();
         inicializarComponentes();
     }
 
+    // Configura título, tamaño y posición de la ventana
     private void configurarVentana() {
         setTitle("Veterinarias");
-        setSize(400, 300);
+        setSize(480, 320);
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setLocationRelativeTo(null);
     }
 
+    // Crea los campos del formulario, los botones y el nombre de la alumna
     private void inicializarComponentes() {
         JPanel panelPrincipal = new JPanel(new BorderLayout());
 
-        // 4 filas: Nombre, Dirección, Abierta, Fecha de Apertura (no hay campo
-        // de Consultas porque arranca en 0 y se va incrementando sola con cada reserva)
+        // No hay campo de Consultas porque arranca en 0 y suma una con cada reserva
         JPanel panelFormulario = new JPanel(new GridLayout(4, 2, 20, 15));
 
         panelFormulario.add(new JLabel("Nombre:", SwingConstants.CENTER));
@@ -72,8 +76,13 @@ public class VeterinariasFrame extends JFrame {
         panelBotones.add(btnGuardar);
         panelBotones.add(btnVolver);
 
+        // Panel inferior: botones y nombre de la alumna abajo a la derecha
+        JPanel panelSur = new JPanel(new BorderLayout());
+        panelSur.add(panelBotones, BorderLayout.CENTER);
+        panelSur.add(new JLabel("Alumna: Sofia Carranza ", SwingConstants.RIGHT), BorderLayout.SOUTH);
+
         panelPrincipal.add(panelFormulario, BorderLayout.CENTER);
-        panelPrincipal.add(panelBotones, BorderLayout.SOUTH);
+        panelPrincipal.add(panelSur, BorderLayout.SOUTH);
 
         add(panelPrincipal);
 
@@ -81,6 +90,7 @@ public class VeterinariasFrame extends JFrame {
         btnVolver.addActionListener(e -> volver());
     }
 
+    // Cierra esta ventana y vuelve a la ventana principal
     private void volver() {
         this.dispose(); // Cierra la ventana actual
 
@@ -88,6 +98,7 @@ public class VeterinariasFrame extends JFrame {
         ventanaPrincipal.setVisible(true); // Abre la ventana principal
     }
 
+    // Valida los datos con expresiones regulares y guarda la veterinaria a través del servicio
     private void guardarVeterinaria() {
 
         String nombre = txtNombre.getText().trim();
@@ -99,14 +110,29 @@ public class VeterinariasFrame extends JFrame {
             return;
         }
 
+        restablecerColores();
+
+        if (!ValidarDato.validarNombreApellido(nombre)) {
+            marcarError(txtNombre, "El nombre de la veterinaria no es válido (solo letras).");
+            return;
+        }
+
+        if (!ValidarDato.validarDireccion(direccion)) {
+            marcarError(txtDireccion, "La dirección no es válida.");
+            return;
+        }
+
+        if (!ValidarDato.validarFecha(fechaTexto)) {
+            marcarError(txtFechaApertura, "La fecha debe tener el formato dd/MM/yyyy.");
+            return;
+        }
+
         try {
             final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
             LocalDate fechaApertura = LocalDate.parse(fechaTexto, FORMATTER);
             boolean abierta = chkAbierta.isSelected();
 
-            // El servicio arma la Veterinaria con consultas en 0; ese contador
-            // se incrementa solo cada vez que se registre una Reserva
-            // para esta veterinaria (ver ReservasServiciosImpl.agregarReserva)
+            // Aquí se arma el objeto veterinaria y se guarda en la base y en la lista
             VeterinariasServiciosImpl servicios = new VeterinariasServiciosImpl();
             Veterinarias veterinaria = servicios.registrarVeterinaria(nombre, direccion, abierta, fechaApertura);
             servicios.agregarVeterinaria(veterinaria, Main.listaVeterinarias);
@@ -122,6 +148,7 @@ public class VeterinariasFrame extends JFrame {
         }
     }
 
+    // Deja el formulario vacío para cargar un nuevo registro
     private void limpiarFormulario() {
         txtNombre.setText("");
         txtDireccion.setText("");
@@ -129,6 +156,20 @@ public class VeterinariasFrame extends JFrame {
         txtFechaApertura.setText("");
 
         txtNombre.requestFocus();
+    }
+
+    // Muestra el mensaje de error y pinta de amarillo el campo incorrecto
+    private void marcarError(JTextField campo, String mensaje) {
+        JOptionPane.showMessageDialog(this, mensaje, "Error", JOptionPane.ERROR_MESSAGE);
+        campo.setBackground(Color.YELLOW);
+        campo.requestFocus();
+    }
+
+    // Vuelve a poner en blanco el fondo de todos los campos
+    private void restablecerColores() {
+        txtNombre.setBackground(Color.WHITE);
+        txtDireccion.setBackground(Color.WHITE);
+        txtFechaApertura.setBackground(Color.WHITE);
     }
 
 }

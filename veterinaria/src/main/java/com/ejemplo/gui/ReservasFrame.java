@@ -1,5 +1,6 @@
 package com.ejemplo.gui;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.GridLayout;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -17,6 +18,7 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
 import com.ejemplo.Main;
+import com.ejemplo.control.ValidarDato;
 import com.ejemplo.modelo.Mascotas;
 import com.ejemplo.modelo.Reservas;
 import com.ejemplo.modelo.Veterinarias;
@@ -36,11 +38,13 @@ public class ReservasFrame extends JFrame {
     private JButton btnGuardar;
     private JButton btnVolver;
 
+    // Constructor: arma la ventana de registro de reservas
     public ReservasFrame() {
         configurarVentana();
         inicializarComponentes();
     }
 
+    // Configura título, tamaño y posición de la ventana
     private void configurarVentana() {
         setTitle("Reservas");
         setSize(600, 300);
@@ -48,6 +52,7 @@ public class ReservasFrame extends JFrame {
         setLocationRelativeTo(null);
     }
 
+    // Crea los campos del formulario, los botones y el nombre de la alumna
     private void inicializarComponentes() {
 
         JPanel panelPrincipal = new JPanel(new BorderLayout());
@@ -96,8 +101,13 @@ public class ReservasFrame extends JFrame {
         panelBotones.add(btnGuardar);
         panelBotones.add(btnVolver);
 
+        // Panel inferior: botones y nombre de la alumna abajo a la derecha
+        JPanel panelSur = new JPanel(new BorderLayout());
+        panelSur.add(panelBotones, BorderLayout.CENTER);
+        panelSur.add(new JLabel("Alumna: Sofia Carranza ", SwingConstants.RIGHT), BorderLayout.SOUTH);
+
         panelPrincipal.add(panelFormulario, BorderLayout.CENTER);
-        panelPrincipal.add(panelBotones, BorderLayout.SOUTH);
+        panelPrincipal.add(panelSur, BorderLayout.SOUTH);
 
         add(panelPrincipal);
 
@@ -105,21 +115,18 @@ public class ReservasFrame extends JFrame {
         btnVolver.addActionListener(e -> volver());
     }
 
+    // Cierra esta ventana y vuelve a la ventana principal
     private void volver() {
         this.dispose(); // Cierra la ventana actual
         MainFrame ventanaPrincipal = new MainFrame();
         ventanaPrincipal.setVisible(true); // Abre la ventana principal
     }
 
+    // Valida los datos, vincula la mascota y la veterinaria elegidas en los
+    // combos y guarda la reserva a través del servicio
     private void guardarReserva() {
 
-        // A diferencia del original (donde este método estaba vacío), acá
-        // implementamos la lógica completa: validar, armar el objeto y
-        // agregarlo a la lista a través del servicio.
-
-        // Primero validamos que existan mascotas y veterinarias cargadas,
-        // porque sin ellas los combos estarían vacíos y getSelectedItem()
-        // devolvería null
+        // Si no hay mascotas o veterinarias cargadas, los combos quedan vacíos
         if (cmbMascotas.getSelectedItem() == null || cmbVeterinarias.getSelectedItem() == null) {
             JOptionPane.showMessageDialog(this, "Debe existir al menos una mascota y una veterinaria registradas.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
@@ -134,6 +141,23 @@ public class ReservasFrame extends JFrame {
             return;
         }
 
+        restablecerColores();
+
+        if (!ValidarDato.validarFecha(fechaTexto)) {
+            marcarError(txtFechaRes, "La fecha debe tener el formato dd/MM/yyyy.");
+            return;
+        }
+
+        if (!ValidarDato.validarNumero(numResTexto)) {
+            marcarError(txtNumRes, "El número de reserva debe ser un número mayor a cero.");
+            return;
+        }
+
+        if (!ValidarDato.validarNumero(precioTexto)) {
+            marcarError(txtPrecio, "El precio debe ser un número mayor a cero.");
+            return;
+        }
+
         try {
             final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
             LocalDate fechaReserva = LocalDate.parse(fechaTexto, FORMATTER);
@@ -144,8 +168,7 @@ public class ReservasFrame extends JFrame {
             Mascotas mascota = (Mascotas) cmbMascotas.getSelectedItem();
             Veterinarias veterinaria = (Veterinarias) cmbVeterinarias.getSelectedItem();
 
-            // El servicio arma la Reservas y, dentro de agregarReserva, incrementa
-            // solo el contador de consultas de la veterinaria seleccionada
+            // Arma la reserva y se guarda en la base y en la lista
             ReservasServiciosImpl servicios = new ReservasServiciosImpl();
             Reservas reserva = servicios.registrarReserva(mascota, veterinaria, fechaReserva, numeroReserva, precio, pagada);
             servicios.agregarReserva(reserva, Main.listaReservas);
@@ -158,20 +181,29 @@ public class ReservasFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "Formato de fecha inválido. Use dd/MM/yyyy", "Error", JOptionPane.ERROR_MESSAGE);
             txtFechaRes.setText("");
             txtFechaRes.requestFocus();
-        } catch (NumberFormatException ex) {
-            // Se dispara si "Nro Reserva" o "Precio" no son números (por ejemplo
-            // si el usuario escribe letras en esos campos)
-            JOptionPane.showMessageDialog(this, "Número de reserva y precio deben ser numéricos.", "Error", JOptionPane.ERROR_MESSAGE);
-            txtNumRes.setText("");
-            txtPrecio.setText("");
         }
     }
 
+    // Deja el formulario vacío para cargar un nuevo registro
     private void limpiarFormulario() {
         txtNumRes.setText("");
         txtFechaRes.setText("");
         txtPrecio.setText("");
         chkPagado.setSelected(false);
         cmbMascotas.requestFocus();
+    }
+
+    // Muestra el mensaje de error y pinta de amarillo el campo incorrecto
+    private void marcarError(JTextField campo, String mensaje) {
+        JOptionPane.showMessageDialog(this, mensaje, "Error", JOptionPane.ERROR_MESSAGE);
+        campo.setBackground(Color.YELLOW);
+        campo.requestFocus();
+    }
+
+    // Vuelve a poner en blanco el fondo de todos los campos
+    private void restablecerColores() {
+        txtFechaRes.setBackground(Color.WHITE);
+        txtNumRes.setBackground(Color.WHITE);
+        txtPrecio.setBackground(Color.WHITE);
     }
 }

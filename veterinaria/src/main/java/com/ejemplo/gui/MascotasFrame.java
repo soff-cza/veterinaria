@@ -1,5 +1,6 @@
 package com.ejemplo.gui;
 import java.awt.BorderLayout;
+import java.awt.Color;
 import java.awt.GridLayout;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -15,6 +16,7 @@ import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
 import com.ejemplo.Main;
+import com.ejemplo.control.ValidarDato;
 import com.ejemplo.modelo.Mascotas;
 import com.ejemplo.servicio.impl.MascotasServiciosImpl;
 
@@ -31,18 +33,21 @@ public class MascotasFrame extends JFrame {
     private JButton btnGuardar;
     private JButton btnVolver;
 
+    // Constructor: arma la ventana de registro de mascotas
     public MascotasFrame() {
         configurarVentana();
         inicializarComponentes();
     }
 
+    // Configura título, tamaño y posición de la ventana
     private void configurarVentana() {
         setTitle("Mascotas");
-        setSize(420, 400);
+        setSize(500, 420);
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         setLocationRelativeTo(null);
     }
 
+    // Crea los campos del formulario, los botones y el nombre de la alumna
     private void inicializarComponentes() {
         JPanel panelPrincipal = new JPanel(new BorderLayout());
 
@@ -81,8 +86,13 @@ public class MascotasFrame extends JFrame {
         panelBotones.add(btnVolver);
         panelBotones.add(btnGuardar);
 
+        // Panel inferior: botones y nombre de la alumna abajo a la derecha
+        JPanel panelSur = new JPanel(new BorderLayout());
+        panelSur.add(panelBotones, BorderLayout.CENTER);
+        panelSur.add(new JLabel("Alumna: Sofia Carranza ", SwingConstants.RIGHT), BorderLayout.SOUTH);
+
         panelPrincipal.add(panelFormulario, BorderLayout.CENTER);
-        panelPrincipal.add(panelBotones, BorderLayout.SOUTH);
+        panelPrincipal.add(panelSur, BorderLayout.SOUTH);
 
         add(panelPrincipal);
 
@@ -90,12 +100,14 @@ public class MascotasFrame extends JFrame {
         btnVolver.addActionListener(e -> volver());
     }
 
+    // Cierra esta ventana y vuelve a la ventana principal
     private void volver() {
         this.dispose();
         MainFrame ventanaPrincipal = new MainFrame();
         ventanaPrincipal.setVisible(true);
     }
 
+    // Valida los datos con expresiones regulares y guarda la mascota a través del servicio
     private void guardarMascota() {
 
         String nombre = txtNombre.getText().trim();
@@ -111,13 +123,47 @@ public class MascotasFrame extends JFrame {
             return;
         }
 
+        restablecerColores();
+
+        if (!ValidarDato.validarNombreApellido(nombre)) {
+            marcarError(txtNombre, "El nombre de la mascota no es válido (solo letras).");
+            return;
+        }
+
+        if (!ValidarDato.validarFecha(fechaTexto)) {
+            marcarError(txtFechaNacimiento, "La fecha debe tener el formato dd/MM/yyyy.");
+            return;
+        }
+
+        if (!ValidarDato.validarNombreApellido(nombreDueño)) {
+            marcarError(txtNombreDueño, "El nombre del dueño no es válido (solo letras).");
+            return;
+        }
+
+        if (!telefonoDueño.isEmpty() && !ValidarDato.validarTelefono(telefonoDueño)) {
+            marcarError(txtTelefonoDueño, "El teléfono debe tener 10 dígitos.");
+            return;
+        }
+
+        if (!emailDueño.isEmpty() && !ValidarDato.validarEmail(emailDueño)) {
+            marcarError(txtEmailDueño, "El correo electrónico ingresado no es válido.");
+            return;
+        }
+
         try {
             final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy");
             LocalDate fechaNacimiento = LocalDate.parse(fechaTexto, FORMATTER);
             boolean vacunada = chkVacunada.isSelected();
 
+            if (fechaNacimiento.isAfter(LocalDate.now())) {
+                marcarError(txtFechaNacimiento, "La fecha de nacimiento no puede ser futura.");
+                return;
+            }
+
+            // Aquí se arma el objeto mascota y se guarda en la base y en la lista
             MascotasServiciosImpl servicios = new MascotasServiciosImpl();
-            Mascotas mascota = servicios.registrarMascota();
+            Mascotas mascota = servicios.registrarMascota(nombre, vacunada, fechaNacimiento,
+                    nombreDueño, telefonoDueño, emailDueño);
             servicios.agregarMascota(mascota, Main.listaMascotas);
 
             JOptionPane.showMessageDialog(this, "Mascota guardada correctamente.");
@@ -131,6 +177,7 @@ public class MascotasFrame extends JFrame {
         }
     }
 
+    // Deja el formulario vacío para cargar un nuevo registro
     private void limpiarFormulario() {
         txtNombre.setText("");
         chkVacunada.setSelected(false);
@@ -139,6 +186,22 @@ public class MascotasFrame extends JFrame {
         txtTelefonoDueño.setText("");
         txtEmailDueño.setText("");
         txtNombre.requestFocus();
+    }
+
+    // Muestra el mensaje de error y pinta de amarillo el campo incorrecto
+    private void marcarError(JTextField campo, String mensaje) {
+        JOptionPane.showMessageDialog(this, mensaje, "Error", JOptionPane.ERROR_MESSAGE);
+        campo.setBackground(Color.YELLOW);
+        campo.requestFocus();
+    }
+
+    // Vuelve a poner en blanco el fondo de todos los campos
+    private void restablecerColores() {
+        txtNombre.setBackground(Color.WHITE);
+        txtFechaNacimiento.setBackground(Color.WHITE);
+        txtNombreDueño.setBackground(Color.WHITE);
+        txtTelefonoDueño.setBackground(Color.WHITE);
+        txtEmailDueño.setBackground(Color.WHITE);
     }
 
 }
